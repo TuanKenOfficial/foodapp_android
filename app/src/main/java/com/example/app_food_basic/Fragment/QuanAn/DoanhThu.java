@@ -60,7 +60,7 @@ public class DoanhThu extends Fragment {
         MonthYearPickerDialogFragment dialogFragment = MonthYearPickerDialogFragment.getInstance(thang, nam);
         dialogFragment.show(requireActivity().getSupportFragmentManager(), null);
         dialogFragment.setOnDateSetListener((year, monthOfYear) -> {
-            String thoiGian = "" + (monthOfYear + 1) + "/" + year;
+            String thoiGian = "0" + (monthOfYear + 1) + "/" + year;
             binding.chonThoiGian.setText(thoiGian);
             truyVanThangNam(thoiGian);
         });

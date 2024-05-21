@@ -1,15 +1,29 @@
 package com.example.app_food_basic.Fragment.KhachHang;
 
+import android.Manifest;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
+import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.appcompat.widget.PopupMenu;
 import androidx.fragment.app.Fragment;
 
 import com.example.app_food_basic.Activity.DangNhap;
@@ -27,6 +41,7 @@ import com.google.firebase.storage.StorageReference;
 import com.squareup.picasso.Picasso;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 public class ThongTinKH extends Fragment {
@@ -36,7 +51,7 @@ public class ThongTinKH extends Fragment {
     private ProgressDialog progressDialog;
 
     private Uri image_uri;
-    private String imageUrl = "" ;
+    private static  final  String TAG = "image_profile_kh";
     public ThongTinKH() {
         // Required empty public constructor
     }
@@ -186,8 +201,139 @@ public class ThongTinKH extends Fragment {
 
     // chọn hình từ camera hoặc thư viện
     private void option() {
+        PopupMenu popupMenu = new PopupMenu(getContext(),binding.avatar);
+        popupMenu.getMenu().add(Menu.NONE,1,1,"Camera");
+        popupMenu.getMenu().add(Menu.NONE,2,2,"Gallery");
+
+        popupMenu.show();
+
+        popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+            @Override
+            public boolean onMenuItemClick(MenuItem item) {
+                int itemId = item.getItemId();
+                if (itemId ==1){
+                    Log.d(TAG, "onMenuItemClick: Mở camera, check camera");
+                    if (Build.VERSION.SDK_INT>= Build.VERSION_CODES.TIRAMISU){
+                        requestCameraPemissions.launch(new String[]{Manifest.permission.CAMERA});
+                    }else {
+                        requestCameraPemissions.launch(new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE});
+                    }
+                }
+                else if (itemId==2){
+                    Log.d(TAG, "onMenuItemClick: Mở storage, check storage");
+                    if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.TIRAMISU){
+                        pickFromGallery1();
+                    }else {
+                        requestStoragePemissions.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+                    }
+                }
+                return false;
+            }
+        });
+    }
+
+    private ActivityResultLauncher<String[]> requestCameraPemissions = registerForActivityResult(
+            new ActivityResultContracts.RequestMultiplePermissions(),
+            new ActivityResultCallback<Map<String,Boolean>>(){
+
+                @Override
+                public void onActivityResult(Map<String, Boolean> result) {
+                    Log.d(TAG, "onActivityResult: "+result.toString());
+                    boolean areAllGranted = true;
+                    for (Boolean isGranted: result.values()){
+                        areAllGranted = areAllGranted && isGranted;
+                    }
+                    if (areAllGranted){
+                        Log.d(TAG, "onActivityResult: Tất cả quyền camera & storage");
+                        pickFromCamera1();
+                    }
+                    else {
+                        Log.d(TAG, "onActivityResult: Tất cả hoặc chỉ có một quyền");
+                        Toast.makeText(getContext(), "Quyền camera hoặc storage", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+    );
+
+    private ActivityResultLauncher<String> requestStoragePemissions = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(),
+            new ActivityResultCallback<Boolean>() {
+                @Override
+                public void onActivityResult(Boolean isGranted) {
+                    if (isGranted){
+                        pickFromGallery1();
+                    }
+                    else {
+                        Toast.makeText(getContext(), "Quyền Storage chưa cấp quyền", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+    );
+
+    private void pickFromGallery1() {
+        Intent intent = new Intent(Intent.ACTION_PICK);
+        intent.setType("image/*");
+        galleryActivityResultLaucher.launch(intent);
+    }
+    private ActivityResultLauncher<Intent> galleryActivityResultLaucher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            new ActivityResultCallback<ActivityResult>() {
+                @Override
+                public void onActivityResult(ActivityResult result) {
+                    if (result.getResultCode() == Activity.RESULT_OK){
+
+                        Intent data = result.getData();
+                        image_uri = data.getData();
+                        Log.d(TAG, "onActivityResult: Hình ảnh thư viện: "+image_uri);
+                        try {
+                            Picasso.get().load(image_uri)
+                                    .placeholder(R.drawable.shopivhd)
+                                    .into(binding.avatar);
+                        }catch (Exception e){
+                            Log.d(TAG, "onActivityResult: "+e);
+                            Toast.makeText(getContext(), ""+e.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                    else {
+                        Toast.makeText(getContext(), "Hủy", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+    );
+
+
+    private void pickFromCamera1() {
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(MediaStore.Images.Media.TITLE, "Temp_Image Title");
+        contentValues.put(MediaStore.Images.Media.DESCRIPTION, "Temp_Image Description");
+
+        image_uri = getActivity().getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues);
+
+        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, image_uri);
+        cameraActivityResultLaucher.launch(intent);
 
     }
-    // kiểm tra người dùng có cấp quyền truy cập camera hay chưa
-
+    private ActivityResultLauncher<Intent> cameraActivityResultLaucher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            new ActivityResultCallback<ActivityResult>() {
+                @Override
+                public void onActivityResult(ActivityResult result) {
+                    if (result.getResultCode() == Activity.RESULT_OK){
+                        Log.d(TAG, "onActivityResult: Hình ảnh: "+image_uri);
+                        try {
+                            Picasso.get().load(image_uri)
+                                    .placeholder(R.drawable.shopivhd)
+                                    .into(binding.avatar);
+                        }catch (Exception e){
+                            Log.d(TAG, "onActivityResult: "+e);
+                            Toast.makeText(getContext(), ""+e.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                    else {
+                        Toast.makeText(getContext(), "Hủy", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+    );
 }

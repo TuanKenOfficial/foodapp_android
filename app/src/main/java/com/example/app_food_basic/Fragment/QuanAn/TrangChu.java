@@ -171,7 +171,10 @@ public class TrangChu extends Fragment {
         hinhSP.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                option();
+                if (image_uri == null){
+                    option();
+                }
+
             }
         });
         Button themSp = view.findViewById(R.id.themSp);
@@ -406,7 +409,7 @@ public class TrangChu extends Fragment {
                         Log.d(TAG, "onActivityResult: Hình ảnh thư viện: " + image_uri);
 
                     } else {
-//                        Log.d(TAG, "onActivityResult: ");
+                        Log.d(TAG, "onActivityResult: "+image_uri);
                         Toast.makeText(getContext(), "Hủy", Toast.LENGTH_SHORT).show();
                     }
                 }
